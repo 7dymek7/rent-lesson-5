@@ -18,27 +18,28 @@ class Manager:
     def add_apartment(self, key, apartment):
         self.apartments[key] = apartment
         
-    def get_apartment_costs(self, apartment_key, year=None, month=None):
-        apartment = self.apartments.get(apartment_key)
-        if apartment is None:
-            return None
-        
-        if month is not None and not (1 <= month <= 12):
-            raise ValueError(f"Invalid month: {month}")
-        
-        bills = apartment.bills
-        
-        if year is not None:
-            bills = [b for b in bills if b.year == year]
-            
-        if month is not None:
-            bills = [b for b in bills if b.month == month]
-            
-        return sum(b.amount for b in bills) if bills else 0.0
-    
-    
-    
+def get_apartment_costs(self, apartment_key, year=None, month=None):
 
+    apartment_bills = [b for b in self.bills if b.apartment == apartment_key]
+
+    if not apartment_bills:
+        return None
+
+    if month is not None and not (1 <= month <= 12):
+        raise ValueError(f"Invalid month: {month}")
+
+    filtered = apartment_bills
+
+    if year is not None:
+        filtered = [b for b in filtered if b.settlement_year == year]
+
+    if month is not None:
+        filtered = [b for b in filtered if b.settlement_month == month]
+
+    if not filtered:
+        return 0.0
+
+    return sum(b.amount_pln for b in filtered)
 
     def load_data(self):
         self.apartments = Apartment.from_json_file(self.parameters.apartments_json_path)

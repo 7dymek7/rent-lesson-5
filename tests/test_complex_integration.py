@@ -1,83 +1,74 @@
 import pytest
 from src.manager import Manager
+from src.models import Parameters
+from src.models import Bill
 
-class DummyBill:
-    def __init__(self, year, month, amount):
-        self.year = year
-        self.month = month
-        self.amount = amount
-        
-class DummyApartment:
-    def __init__(self, bills=None):
-        self.bills = bills or []
-        
-def test_get_apartment_cost_integration():
-    manager = Manager()
-    
-    assert manager.get_apartment_costs("A1", 2024, 3) is None
-    
-    apt = DummyApartment(bills=[
-        DummyBill(2024, 1, 100.0),
-        DummyBill(2024, 1, 200.0),
-    ])
-    manager.add_apartment("A1", apt)
-    
-    assert manager.get_apartment_costs("A1", 2024, 3) == 0.0
-    
-    apt.bills.extend([
-        DummyBill(2024, 3, 150.0),
-        DummyBill(2024, 3, 200.0),
-        DummyBill(2024, 3, 100.0),
-    ])
-    
-    assert manager.get_apartment_costs("A1", 2024, 3) == 450.0
-    
-def test_invalid_month_raises_error():
-    manager = Manager()
-    apt = DummyApartment(bills=[])
-    manager.add_apartment("A1", apt)
-    
-    try:
-        manager.get_apartment_costs("A1", 2024, 0)
-        assert False, "Expected ValueError for month=0"
-    except ValueError:
-        pass
-    
-    try:
-        manager.get_apartment_costs("A1", 2024, 13)
-        assert False, "Expected ValueError for month=13"
-    except ValueError:
-        pass
-    
-def test_sum_whole_history():
-    manager = Manager()
-    apt = DummyApartment(bills=[
-        DummyBill(2023, 1, 100),
-        DummyBill(2024, 5, 200),
-        DummyBill(2024, 6, 300),
-    ])
-    manager.add_apartment("A1", apt)
-    
-    assert manager.get_apartment_costs("A1") == 600
-    
-def test_sum_year_only():
-    manager = Manager()
-    apt = DummyApartment(bills=[
-        DummyBill(2024, 1, 100),
-        DummyBill(2024, 2, 200),
-        DummyBill(2024, 5, 300),
-    ])
-    manager.add_apartment("A1", apt)
-    
-    assert manager.get_apartment_costs ("A1", 2024) == 300
-    
-def test_sum_specific_month():
-    manager = Manager()
-    apt = DummyApartment(bills=[
-        DummyBill(2024, 3, 150),
-        DummyBill(2024, 3, 250),
-        DummyBill(2024, 4, 100),
-    ])
-    manager.add_apartment("A1", apt)
-    
-    assert manager.get_apartment_costs ("A1", 2024, 3) == 400
+
+import pytest
+from src.manager import Manager
+from src.models import Parameters, Bill
+
+
+def test_apartment_costs_with_optional_parameters():
+    manager = Manager(Parameters())
+
+    manager.bills.append(Bill(
+        apartment='apart-polanka',
+        date_due='2025-03-15',
+        settlement_year=2025,
+        settlement_month=2,
+        amount_pln=1250.0,
+        type='rent'
+    ))
+
+    manager.bills.append(Bill(
+        apartment='apart-polanka',
+        date_due='2024-03-15',
+        settlement_year=2024,
+        settlement_month=2,
+        amount_pln=1150.0,
+        type='rent'
+    ))
+
+    manager.bills.append(Bill(
+        apartment='apart-polanka',
+        date_due='2024-02-02',
+        settlement_year=2024,
+        settlement_month=1,
+        amount_pln=222.0,
+        type='electricity'
+    ))
+
+    costs = manager.get_apartment_costs('apartment-1', 2024, 1)
+    assert costs is None
+
+    costs = manager.get_apartment_costs('apart-polanka', 2024, 3)
+    assert costs == 0.0
+
+    costs = manager.get_apartment_costs('apart-polanka', 2024, 1)
+    assert costs == 222.0
+    costs = manager.get_apartment_costs('apart-polanka', 2025, 1)
+    assert costs == 0.0
+    costs = manager.get_apartment_costs('apart-polanka', 2024)
+    assert costs == 1372.0
+    costs = manager.get_apartment_costs('apart-polanka')
+    assert costs == 2622.0
+
+
+def test_invalid_month():
+    manager = Manager(Parameters())
+
+    manager.bills.append(Bill(
+        apartment='A1',
+        date_due='2024-01-01',
+        settlement_year=2024,
+        settlement_month=1,
+        amount_pln=100,
+        type='rent'
+    ))
+
+    with pytest.raises(ValueError):
+        manager.get_apartment_costs('A1', 2024, 0)
+
+    with pytest.raises(ValueError):
+        manager.get_apartment_costs('A1', 2024, 13)
