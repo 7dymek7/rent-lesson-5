@@ -1,23 +1,25 @@
-from src.models import Apartment, Bill, Parameters, Tenant, Transfer, ApartmentSettlement, TenantSettlement
+from src.models import (
+    Apartment,
+    Bill,
+    Parameters,
+    Tenant,
+    Transfer,
+    ApartmentSettlement,
+    TenantSettlement,
+)
 
 
 class Manager:
     def __init__(self, parameters: Parameters):
-        self.parameters = parameters 
+        self.parameters = parameters
 
-        self.apartments = {}
-        self.tenants = {}
-        self.transfers = []
-        self.bills = []
-       
+        self.apartments: dict[str, Apartment] = {}
+        self.tenants: dict[str, Tenant] = {}
+        self.transfers: list[Transfer] = []
+        self.bills: list[Bill] = []
+
         self.load_data()
-        
-    def __init__(self):
-        self.apartments = {}
-        
-    def add_apartment(self, key, apartment):
-        self.apartments[key] = apartment
-    
+
     def load_data(self):
         self.apartments = Apartment.from_json_file(self.parameters.apartments_json_path)
         self.tenants = Tenant.from_json_file(self.parameters.tenants_json_path)
@@ -29,77 +31,73 @@ class Manager:
             if tenant.apartment not in self.apartments:
                 return False
         return True
-        
-def get_apartment_costs(self, apartment_key, year=None, month=None):
 
-    apartment_bills = [b for b in self.bills if b.apartment == apartment_key]
+    def get_apartment_costs(self, apartment_key, year=None, month=None):
+        apartment_bills = [b for b in self.bills if b.apartment == apartment_key]
 
-    if not apartment_bills:
-        return None
+        if not apartment_bills:
+            return None
 
-    if month is not None and not (1 <= month <= 12):
-        raise ValueError(f"Invalid month: {month}")
+        if month is not None and not (1 <= month <= 12):
+            raise ValueError(f"Invalid month: {month}")
 
-    filtered = apartment_bills
+        filtered = apartment_bills
 
-    if year is not None:
-        filtered = [b for b in filtered if b.settlement_year == year]
+        if year is not None:
+            filtered = [b for b in filtered if b.settlement_year == year]
 
-    if month is not None:
-        filtered = [b for b in filtered if b.settlement_month == month]
+        if month is not None:
+            filtered = [b for b in filtered if b.settlement_month == month]
 
-    if not filtered:
-        return 0.0
+        if not filtered:
+            return 0.0
 
-    return sum(b.amount_pln for b in filtered)
+        return sum(b.amount_pln for b in filtered)
 
-    
-    
-def create_apartment_settlement(self, apartment_key: str, year: int, month: int):
-    bills = [
-        b for b in self.bills
-        if b.apartment == apartment_key
-        and b.settlement_year == year
-        and b.settlement_month == month
-    ]
+    def create_apartment_settlement(self, apartment_key: str, year: int, month: int):
+        bills = [
+            b for b in self.bills
+            if b.apartment == apartment_key
+            and b.settlement_year == year
+            and b.settlement_month == month
+        ]
 
-    total_bills = sum(b.amount_pln for b in bills)
+        total_bills = sum(b.amount_pln for b in bills)
+        total_rent = 0.0
+        total_due = total_bills - total_rent
 
-    total_rent = 0.0
+        return ApartmentSettlement(
+            apartment=apartment_key,
+            year=year,
+            month=month,
+            total_rent_pln=total_rent,
+            total_bills_pln=total_bills,
+            total_due_pln=total_due,
+        )
 
-    total_due = total_bills - total_rent
+    def create_tenant_settlements(self, apartment_settlement: ApartmentSettlement):
+        tenants = [
+            t for t in self.tenants.values()
+            if t.apartment == apartment_settlement.apartment
+        ]
 
-    return ApartmentSettlement(
-        apartment=apartment_key,
-        year=year,
-        month=month,
-        total_rent_pln=total_rent,
-        total_bills_pln=total_bills,
-        total_due_pln=total_due
-    )
-def create_tenant_settlements(self, apartment_settlement):
-    tenants = [
-        t for t in self.tenants.values()
-        if t.apartment == apartment_settlement.apartment
-    ]
+        if not tenants:
+            return []
 
-    if not tenants:
-        return []
+        cost_per_tenant = apartment_settlement.total_bills_pln / len(tenants)
 
-    cost_per_tenant = apartment_settlement.total_bills_pln / len(tenants)
+        settlements: list[TenantSettlement] = []
 
-    settlements = []
+        for tenant in tenants:
+            settlements.append(TenantSettlement(
+                tenant=tenant.name,
+                apartment_settlement=apartment_settlement.apartment,
+                year=apartment_settlement.year,
+                month=apartment_settlement.month,
+                rent_pln=0.0,
+                bills_pln=cost_per_tenant,
+                total_due_pln=cost_per_tenant,
+                balance_pln=0.0,
+            ))
 
-    for tenant in tenants:
-        settlements.append(TenantSettlement(
-            tenant=tenant.name,
-            apartment_settlement=apartment_settlement.apartment,
-            year=apartment_settlement.year,
-            month=apartment_settlement.month,
-            rent_pln=0.0,
-            bills_pln=cost_per_tenant,
-            total_due_pln=cost_per_tenant,
-            balance_pln=0.0
-        ))
-
-    return settlements
+        return settlements
